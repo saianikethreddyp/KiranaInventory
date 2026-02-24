@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
@@ -8,35 +8,87 @@ import { Input } from "@/components/ui/Input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import { Select } from "@/components/ui/Select";
 import { Dialog } from "@/components/ui/Dialog";
-import { ArrowLeft, Save } from "lucide-react";
+import { ArrowLeft, Save, Loader2 } from "lucide-react";
 
 export default function AddProductPage() {
     const router = useRouter();
-    const [categories, setCategories] = useState<string[]>(["Dairy", "Bakery", "Snacks", "Beverages", "Staples", "Household"]);
+    const [categories, setCategories] = useState<string[]>([]);
+
+    useEffect(() => {
+        fetch('/api/categories')
+            .then(res => res.json())
+            .then(data => setCategories(data.filter((c: any) => c.name !== 'Uncategorized').map((c: any) => c.name)))
+            .catch(console.error);
+    }, []);
 
     // Form State
     const [productName, setProductName] = useState("");
     const [selectedCategory, setSelectedCategory] = useState("");
     const [unit, setUnit] = useState("");
+    const [price, setPrice] = useState("");
     const [minStock, setMinStock] = useState("");
+    const [loading, setLoading] = useState(false);
 
     // Dialog State
     const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
     const [newCategoryName, setNewCategoryName] = useState("");
+    const [savingCategory, setSavingCategory] = useState(false);
 
-    const handleCreateCategory = () => {
+    const handleCreateCategory = async () => {
         if (!newCategoryName.trim()) return;
-        setCategories([...categories, newCategoryName]);
-        setSelectedCategory(newCategoryName); // Auto select the new category
-        setNewCategoryName("");
-        setIsCategoryDialogOpen(false);
+        setSavingCategory(true);
+        try {
+            const res = await fetch('/api/categories', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: newCategoryName })
+            });
+            if (res.ok) {
+                setCategories([...categories, newCategoryName]);
+                setSelectedCategory(newCategoryName);
+                setNewCategoryName("");
+                setIsCategoryDialogOpen(false);
+            } else {
+                const err = await res.json();
+                alert(`Error: ${err.error}`);
+            }
+        } catch (err) {
+            console.error(err);
+        }
+        setSavingCategory(false);
     };
 
-    const handleSaveProduct = () => {
-        // Logic to save product (mock)
-        console.log("Saving Product:", { productName, selectedCategory, unit, minStock });
-        alert("Product Added Successfully!");
-        router.push("/products");
+    const handleSaveProduct = async () => {
+        if (!productName || !unit || !price) {
+            return alert("Please fill at least Product Name, Unit, and Selling Price.");
+        }
+
+        setLoading(true);
+        try {
+            const res = await fetch('/api/products', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: productName,
+                    category: selectedCategory,
+                    unit,
+                    price: Number(price),
+                    // minStock can be added to model later if needed, but not in current model schema
+                })
+            });
+
+            if (res.ok) {
+                alert("Product Added Successfully!");
+                router.push("/products");
+            } else {
+                const data = await res.json();
+                alert(`Error: ${data.error}`);
+            }
+        } catch (err) {
+            console.error(err);
+            alert("Failed to save product.");
+        }
+        setLoading(false);
     };
 
     return (
@@ -89,23 +141,33 @@ export default function AddProductPage() {
                         </div>
                     </div>
 
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium">Minimum Stock Level (Alert Threshold)</label>
-                        <Input
-                            type="number"
-                            placeholder="e.g. 5"
-                            value={minStock}
-                            onChange={(e) => setMinStock(e.target.value)}
-                        />
-                        <p className="text-xs text-muted-foreground">You will be notified when stock falls below this number.</p>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Selling Price (₹)</label>
+                            <Input
+                                type="number"
+                                placeholder="e.g. 50"
+                                value={price}
+                                onChange={(e) => setPrice(e.target.value)}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Minimum Stock Level</label>
+                            <Input
+                                type="number"
+                                placeholder="e.g. 5"
+                                value={minStock}
+                                onChange={(e) => setMinStock(e.target.value)}
+                            />
+                        </div>
                     </div>
 
                     <div className="pt-4 flex justify-end gap-2">
                         <Link href="/products">
                             <Button variant="outline" className="rounded-xl">Cancel</Button>
                         </Link>
-                        <Button className="rounded-xl min-w-[120px]" onClick={handleSaveProduct}>
-                            <Save className="mr-2 h-4 w-4" />
+                        <Button className="rounded-xl min-w-[120px]" onClick={handleSaveProduct} disabled={loading}>
+                            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                             Save Product
                         </Button>
                     </div>

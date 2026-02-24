@@ -11,13 +11,17 @@ import {
     Bell,
     LogOut,
     Store,
-    Tags
+    Tags,
+    BarChart3,
+    FileText
 } from "lucide-react";
 
 const navItems = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/products", label: "Products", icon: Package },
     { href: "/categories", label: "Categories", icon: Tags },
+    { href: "/analytics", label: "Analytics", icon: BarChart3 },
+    { href: "/transactions", label: "Transactions", icon: FileText },
     { href: "/stock-in", label: "Stock In", icon: PackagePlus },
     { href: "/stock-out", label: "Stock Out", icon: PackageMinus },
     { href: "/alerts", label: "Alerts", icon: Bell },
