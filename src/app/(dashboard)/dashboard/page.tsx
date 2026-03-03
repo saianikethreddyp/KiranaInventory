@@ -9,7 +9,10 @@ import {
     ArrowRight,
     ArrowUpRight,
     TrendingUp,
-    MoreHorizontal
+    MoreHorizontal,
+    CloudRain,
+    Sun,
+    Thermometer
 } from "lucide-react"
 import Link from "next/link"
 import dbConnect from "@/lib/db"
@@ -37,6 +40,35 @@ export default async function DashboardPage() {
     const newItemsAdded = await Product.countDocuments({ createdAt: { $gte: thirtyDaysAgo } });
 
     const lowStockCount = lowStockItems.length + outOfStockItems.length;
+
+    // 5. Weather Prediction & Insights
+    let currentTemp = null;
+    let weatherInsight = "Pleasant weather in Hyderabad. Maintain normal stocking patterns.";
+    let WeatherIcon = Sun;
+
+    try {
+        const res = await fetch("https://api.open-meteo.com/v1/forecast?latitude=17.385&longitude=78.4867&current=temperature_2m,precipitation&timezone=auto", { next: { revalidate: 3600 } });
+        if (res.ok) {
+            const weatherData = await res.json();
+            currentTemp = weatherData?.current?.temperature_2m;
+            const currentPrecip = weatherData?.current?.precipitation;
+
+            if (currentPrecip && currentPrecip > 0) {
+                weatherInsight = "It's raining in Hyderabad. Consider stocking up on umbrellas, raincoats, and hot snacks.";
+                WeatherIcon = CloudRain;
+            } else if (currentTemp && currentTemp > 30) {
+                weatherInsight = "It's hot outside! Recommend increasing stock of cold drinks, ice creams, and hydration drinks.";
+                WeatherIcon = Sun;
+            } else if (currentTemp && currentTemp < 20) {
+                weatherInsight = "It's quite cool currently. Great time to stock up on hot beverages and winter snacks.";
+                WeatherIcon = Thermometer;
+            } else {
+                WeatherIcon = Sun;
+            }
+        }
+    } catch (e) {
+        console.error("Failed to fetch weather", e);
+    }
 
     // 5. Recent Alerts formatted for Dashboard
     const alerts = [
@@ -158,6 +190,27 @@ export default async function DashboardPage() {
 
                 {/* Right Column: Quick Actions / Smaller widgets */}
                 <div className="space-y-6">
+                    <div className="flex items-center justify-between">
+                        <h2 className="text-xl font-bold tracking-tight text-foreground">Hyderabad Weather Insights</h2>
+                    </div>
+
+                    <Card className="rounded-2xl border-none shadow-sm ring-1 ring-border/50">
+                        <CardHeader className="pb-2">
+                            <div className="flex items-center space-x-2">
+                                {WeatherIcon && <WeatherIcon className="h-5 w-5 text-blue-500" />}
+                                <CardTitle className="text-lg font-medium">Local Forecast</CardTitle>
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-3xl font-bold mt-1 text-foreground">
+                                {currentTemp ? `${currentTemp}°C` : '--°C'}
+                            </div>
+                            <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
+                                {weatherInsight}
+                            </p>
+                        </CardContent>
+                    </Card>
+
                     <div className="flex items-center justify-between">
                         <h2 className="text-xl font-bold tracking-tight text-foreground">Quick Actions</h2>
                     </div>
